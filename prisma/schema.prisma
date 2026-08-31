@@ -1,0 +1,306 @@
+// Guest House Management System - Prisma Schema
+// Database: MySQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum RoomStatus {
+  AVAILABLE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// ==========================================
+// USER
+// ==========================================
+
+model User {
+  id           String     @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String     @unique
+  phone        String?    @unique
+  passwordHash String
+  role         Role       @default(CUSTOMER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  bookings         Booking[]              @relation("CustomerBookings")
+  approvedBookings Booking[]              @relation("ApprovedByAdmin")
+  refreshTokens    RefreshToken[]
+  statusChanges    BookingStatusHistory[]
+  auditLogs        AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ==========================================
+// REFRESH TOKEN (hashed, rotated)
+// ==========================================
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ==========================================
+// ROOM TYPE
+// ==========================================
+
+model RoomType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rooms  Room[]
+  offers Offer[]
+
+  @@map("room_types")
+}
+
+// ==========================================
+// ROOM
+// ==========================================
+
+model Room {
+  id                String     @id @default(cuid())
+  roomNumber        String     @unique
+  name              String
+  description       String?    @db.Text
+  roomTypeId        String
+  pricePerNight     Decimal    @db.Decimal(10, 2)
+  maximumGuests     Int
+  numberOfBeds      Int
+  numberOfBathrooms Int        @default(1)
+  roomSize          Float?
+  status            RoomStatus @default(AVAILABLE)
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  roomType   RoomType       @relation(fields: [roomTypeId], references: [id])
+  images     RoomImage[]
+  facilities RoomFacility[]
+  bookings   Booking[]
+  offers     Offer[]
+
+  @@index([roomTypeId])
+  @@index([status])
+  @@index([isActive])
+  @@map("rooms")
+}
+
+// ==========================================
+// ROOM IMAGE
+// ==========================================
+
+model RoomImage {
+  id        String   @id @default(cuid())
+  roomId    String
+  imageUrl  String   @db.Text
+  publicId  String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@map("room_images")
+}
+
+// ==========================================
+// FACILITY (many-to-many with Room)
+// ==========================================
+
+model Facility {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  icon        String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rooms RoomFacility[]
+
+  @@map("facilities")
+}
+
+model RoomFacility {
+  roomId     String
+  facilityId String
+  createdAt  DateTime @default(now())
+
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, facilityId])
+  @@index([facilityId])
+  @@map("room_facilities")
+}
+
+// ==========================================
+// OFFER
+// ==========================================
+
+model Offer {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?      @db.Text
+  discountType   DiscountType
+  discountValue  Decimal      @db.Decimal(10, 2)
+  startDate      DateTime
+  endDate        DateTime
+  minimumNights  Int          @default(1)
+  roomTypeId     String?
+  roomId         String?
+  isActive       Boolean      @default(true)
+  bannerImage    String?      @db.Text
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  roomType RoomType? @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
+  room     Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  bookings Booking[]
+
+  @@index([roomTypeId])
+  @@index([roomId])
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+  @@map("offers")
+}
+
+// ==========================================
+// BOOKING
+// ==========================================
+
+model Booking {
+  id                 String        @id @default(cuid())
+  bookingNumber      String        @unique
+  userId             String
+  roomId             String
+  checkInDate        DateTime      @db.Date
+  checkOutDate       DateTime      @db.Date
+  numberOfGuests     Int
+  numberOfAdults     Int
+  numberOfChildren   Int           @default(0)
+  numberOfNights     Int
+  pricePerNight      Decimal       @db.Decimal(10, 2)
+  subtotal           Decimal       @db.Decimal(10, 2)
+  discountAmount     Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount        Decimal       @db.Decimal(10, 2)
+  offerId            String?
+  status             BookingStatus @default(PENDING)
+  customerNote       String?       @db.Text
+  adminNote          String?       @db.Text
+  approvedBy         String?
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?       @db.Text
+  cancelledAt        DateTime?
+  cancellationReason String?       @db.Text
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  user           User                   @relation("CustomerBookings", fields: [userId], references: [id])
+  room           Room                   @relation(fields: [roomId], references: [id])
+  offer          Offer?                 @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  approvedByUser User?                  @relation("ApprovedByAdmin", fields: [approvedBy], references: [id], onDelete: SetNull)
+  statusHistory  BookingStatusHistory[]
+
+  @@index([roomId])
+  @@index([userId])
+  @@index([status])
+  @@index([checkInDate])
+  @@index([checkOutDate])
+  @@index([roomId, status, checkInDate, checkOutDate])
+  @@map("bookings")
+}
+
+// ==========================================
+// BOOKING STATUS HISTORY (audit trail)
+// ==========================================
+
+model BookingStatusHistory {
+  id        String        @id @default(cuid())
+  bookingId String
+  status    BookingStatus
+  note      String?       @db.Text
+  changedBy String?
+  createdAt DateTime      @default(now())
+
+  booking        Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  changedByUser  User?   @relation(fields: [changedBy], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@map("booking_status_history")
+}
+
+// ==========================================
+// AUDIT LOG (lightweight, extendable)
+// ==========================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
