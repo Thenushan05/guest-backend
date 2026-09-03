@@ -2,6 +2,9 @@
 /dist
 /node_modules
 
+# uploaded images (local dev storage — never commit these)
+/secure-uploads/
+
 # logs
 logs
 *.log
@@ -9,6 +12,7 @@ npm-debug.log*
 
 # env
 .env
+.env.test
 .env.*.local
 
 # IDE
