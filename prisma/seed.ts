@@ -77,7 +77,7 @@ async function main() {
     { name: 'Swimming Pool', icon: 'waves' },
   ];
 
-  const facilities = [];
+  const facilities: { id: string; name: string }[] = [];
   for (const f of facilityDefs) {
     facilities.push(
       await prisma.facility.upsert({
@@ -89,8 +89,7 @@ async function main() {
   }
   console.log(`✔ ${facilities.length} facilities ready`);
 
-  const facilityByName = (name: string) => facilities.find((f) => f.name === name)!.id;
-
+const facilityByName = (name: string) => facilities.find((f) => f.name === name)!.id;
   // ---------------- Rooms ----------------
   const roomDefs = [
     {
