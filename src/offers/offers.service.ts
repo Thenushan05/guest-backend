@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DiscountType, Offer, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
@@ -67,12 +67,28 @@ export class OffersService {
     return mapOfferToResponse(offer);
   }
 
+  private validateBusinessRules(dto: CreateOfferDto | UpdateOfferDto): void {
+    if (dto.discountType === DiscountType.PERCENTAGE && dto.discountValue !== undefined && dto.discountValue > 100) {
+      throw new BadRequestException('Percentage discount cannot exceed 100');
+    }
+    
+    if (dto.startDate && dto.endDate) {
+      const start = new Date(dto.startDate);
+      const end = new Date(dto.endDate);
+      if (end < start) {
+        throw new BadRequestException('End date must be on or after start date');
+      }
+    }
+  }
+
   create(dto: CreateOfferDto): Promise<OfferResponse> {
+    this.validateBusinessRules(dto);
     return this.prisma.offer.create({ data: dto }).then(mapOfferToResponse);
   }
 
   async update(id: string, dto: UpdateOfferDto): Promise<OfferResponse> {
     await this.ensureExists(id);
+    this.validateBusinessRules(dto);
     const offer = await this.prisma.offer.update({ where: { id }, data: dto });
     return mapOfferToResponse(offer);
   }
