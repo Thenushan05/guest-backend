@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 
 /**
  * What a customer is allowed to submit when creating a booking.
@@ -36,7 +36,37 @@ export class CreateBookingDto {
   @Max(20)
   numberOfChildren?: number = 0;
 
-  @ApiPropertyOptional({ example: 'Late check-in around 9 PM, please.' })
+  @ApiPropertyOptional({ example: true, default: true, description: 'True for AC room, false for Non-AC room' })
+  @IsOptional()
+  @IsBoolean()
+  isAc?: boolean = true;
+
+  @ApiProperty({ example: 'John', description: 'Customer first name (mandatory)' })
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+
+  @ApiProperty({ example: 'Doe', description: 'Customer last name (mandatory)' })
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
+
+  @ApiProperty({ example: '+94 77 123 4567', description: 'Customer phone number (mandatory)' })
+  @IsString()
+  @IsNotEmpty()
+  phone: string;
+
+  @ApiProperty({ example: '123 Beach Road, Jaffna', description: 'Customer address (mandatory)' })
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+
+  @ApiPropertyOptional({ example: 'customer@example.com', description: 'Customer email (optional)' })
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional({ example: 'Late check-in around 9 PM, please.', description: 'Additional notes (optional)' })
   @IsOptional()
   @IsString()
   customerNote?: string;

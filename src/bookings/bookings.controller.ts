@@ -10,19 +10,20 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 
+import { Public } from '../common/decorators/public.decorator';
+
 @ApiTags('Bookings')
 @ApiBearerAuth()
 @Controller('bookings')
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
-  @UseGuards(RolesGuard)
-  @Roles(Role.CUSTOMER)
+  @Public()
   @Post()
-  @ApiOperation({ summary: 'Create a booking request (customer only)' })
+  @ApiOperation({ summary: 'Create a booking request (guest or customer)' })
   @ResponseMessage('Booking created successfully')
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateBookingDto) {
-    return this.bookingsService.create(user.id, dto);
+  create(@CurrentUser() user: AuthenticatedUser | undefined, @Body() dto: CreateBookingDto) {
+    return this.bookingsService.create(user?.id, dto);
   }
 
   @UseGuards(RolesGuard)

@@ -55,7 +55,7 @@ export class BookingsService {
    * database inside a single transaction, which also serializes concurrent
    * attempts on the same room via a row lock before the overlap check runs.
    */
-  async create(userId: string, dto: CreateBookingDto): Promise<BookingResponse> {
+  async create(userId: string | undefined, dto: CreateBookingDto): Promise<BookingResponse> {
     const checkInDate = toUtcDateOnly(dto.checkInDate);
     const checkOutDate = toUtcDateOnly(dto.checkOutDate);
     assertValidDateRange(checkInDate, checkOutDate);
@@ -85,7 +85,10 @@ export class BookingsService {
       if (hasOverlap) throw new RoomNotAvailableException();
 
       const numberOfNights = calculateNights(checkInDate, checkOutDate);
-      const pricePerNight = toNumber(room.pricePerNight);
+      const isAc = dto.isAc ?? true;
+      const pricePerNight = (!isAc && room.pricePerNightNonAc)
+        ? toNumber(room.pricePerNightNonAc)
+        : toNumber(room.pricePerNight);
       const subtotal = roundCurrency(pricePerNight * numberOfNights);
 
       const appliedOffer = await this.offersService.findBestApplicableOffer({
@@ -103,8 +106,13 @@ export class BookingsService {
       const created = await tx.booking.create({
         data: {
           bookingNumber,
-          userId,
+          userId: userId ?? null,
           roomId: room.id,
+          customerFirstName: dto.firstName,
+          customerLastName: dto.lastName,
+          customerPhone: dto.phone,
+          customerAddress: dto.address,
+          customerEmail: dto.email ?? null,
           checkInDate,
           checkOutDate,
           numberOfGuests,
@@ -112,6 +120,7 @@ export class BookingsService {
           numberOfChildren,
           numberOfNights,
           pricePerNight,
+          isAc,
           subtotal,
           discountAmount,
           totalAmount,
@@ -126,12 +135,15 @@ export class BookingsService {
         data: {
           bookingId: created.id,
           status: BookingStatus.PENDING,
-          changedBy: userId,
-          note: 'Booking request created by customer',
+          changedBy: userId ?? null,
+          note: `Booking request created by customer (${dto.firstName} ${dto.lastName})`,
         },
       });
 
       return created;
+    }, {
+      maxWait: 10000,
+      timeout: 15000,
     });
 
     return mapBookingToResponse(booking);

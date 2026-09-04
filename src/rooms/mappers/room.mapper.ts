@@ -19,6 +19,7 @@ export interface RoomResponse {
   roomTypeId: string;
   roomType: { id: string; name: string; description: string | null } | null;
   pricePerNight: number;
+  pricePerNightNonAc: number | null;
   maximumGuests: number;
   numberOfBeds: number;
   numberOfBathrooms: number;
@@ -44,6 +45,7 @@ export function mapRoomToResponse(room: RoomWithRelations): RoomResponse {
       ? { id: room.roomType.id, name: room.roomType.name, description: room.roomType.description }
       : null,
     pricePerNight: toNumber(room.pricePerNight),
+    pricePerNightNonAc: room.pricePerNightNonAc ? toNumber(room.pricePerNightNonAc) : null,
     maximumGuests: room.maximumGuests,
     numberOfBeds: room.numberOfBeds,
     numberOfBathrooms: room.numberOfBathrooms,

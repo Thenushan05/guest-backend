@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -12,7 +13,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { DiscountType } from '@prisma/client';
+import { DayOfWeek, DiscountType } from '@prisma/client';
 
 export class CreateOfferDto {
   @ApiProperty({ example: 'Early Bird Special' })
@@ -46,6 +47,20 @@ export class CreateOfferDto {
   @IsDateString()
   endDate: string;
 
+  @ApiPropertyOptional({
+    enum: DayOfWeek,
+    isArray: true,
+    example: ['FRI', 'SAT', 'SUN'],
+    description:
+      'Restricts the discount to bookings whose check-in date falls on one of these weekdays ' +
+      '(e.g. a recurring weekend offer valid every Fri-Sun for the whole startDate/endDate window). ' +
+      'Omit or leave empty to apply on every day within the range, as before.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(DayOfWeek, { each: true })
+  daysOfWeek?: DayOfWeek[];
+
   @ApiPropertyOptional({ example: 2, default: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -72,4 +87,9 @@ export class CreateOfferDto {
   @IsOptional()
   @IsString()
   bannerImage?: string;
+
+  @ApiPropertyOptional({ example: 'bird', description: 'Selected luxury icon identifier' })
+  @IsOptional()
+  @IsString()
+  iconName?: string;
 }

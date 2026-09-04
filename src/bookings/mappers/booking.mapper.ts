@@ -17,14 +17,20 @@ export const bookingIncludeArgs = bookingWithRelations.include;
 export interface BookingResponse {
   id: string;
   bookingNumber: string;
-  userId: string;
+  userId: string | null;
   customer: {
     id: string;
     firstName: string;
     lastName: string;
-    email: string;
+    email: string | null;
     phone: string | null;
+    address?: string | null;
   } | null;
+  customerFirstName?: string | null;
+  customerLastName?: string | null;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  customerEmail?: string | null;
   roomId: string;
   room: {
     id: string;
@@ -40,6 +46,7 @@ export interface BookingResponse {
   numberOfChildren: number;
   numberOfNights: number;
   pricePerNight: number;
+  isAc: boolean;
   subtotal: number;
   discountAmount: number;
   totalAmount: number;
@@ -60,16 +67,29 @@ export function mapBookingToResponse(booking: BookingWithRelations): BookingResp
   return {
     id: booking.id,
     bookingNumber: booking.bookingNumber,
-    userId: booking.userId,
+    userId: booking.userId ?? null,
     customer: booking.user
       ? {
           id: booking.user.id,
-          firstName: booking.user.firstName,
-          lastName: booking.user.lastName,
-          email: booking.user.email,
-          phone: booking.user.phone,
+          firstName: booking.customerFirstName || booking.user.firstName,
+          lastName: booking.customerLastName || booking.user.lastName,
+          email: booking.customerEmail || booking.user.email,
+          phone: booking.customerPhone || booking.user.phone,
+          address: booking.customerAddress || null,
         }
-      : null,
+      : {
+          id: 'guest',
+          firstName: booking.customerFirstName || 'Guest',
+          lastName: booking.customerLastName || '',
+          email: booking.customerEmail || null,
+          phone: booking.customerPhone || null,
+          address: booking.customerAddress || null,
+        },
+    customerFirstName: booking.customerFirstName,
+    customerLastName: booking.customerLastName,
+    customerPhone: booking.customerPhone,
+    customerAddress: booking.customerAddress,
+    customerEmail: booking.customerEmail,
     roomId: booking.roomId,
     room: booking.room
       ? {
@@ -87,6 +107,7 @@ export function mapBookingToResponse(booking: BookingWithRelations): BookingResp
     numberOfChildren: booking.numberOfChildren,
     numberOfNights: booking.numberOfNights,
     pricePerNight: toNumber(booking.pricePerNight),
+    isAc: booking.isAc,
     subtotal: toNumber(booking.subtotal),
     discountAmount: toNumber(booking.discountAmount),
     totalAmount: toNumber(booking.totalAmount),

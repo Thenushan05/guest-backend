@@ -6,7 +6,25 @@
  * client timezone), every date is normalized to a UTC midnight `Date` before
  * being compared, stored, or persisted via Prisma's `@db.Date` columns.
  */
+import { DayOfWeek } from '@prisma/client';
 import { InvalidBookingDatesException } from '../exceptions/domain-exceptions';
+
+
+/** Maps JS's Date#getUTCDay() (0=Sun..6=Sat) to the DayOfWeek enum (MON..SUN). */
+const JS_DAY_TO_DAY_OF_WEEK: DayOfWeek[] = [
+  DayOfWeek.SUN,
+  DayOfWeek.MON,
+  DayOfWeek.TUE,
+  DayOfWeek.WED,
+  DayOfWeek.THU,
+  DayOfWeek.FRI,
+  DayOfWeek.SAT,
+];
+
+/** The DayOfWeek (MON..SUN) a UTC-midnight-normalized Date falls on. */
+export function dayOfWeekOf(date: Date): DayOfWeek {
+  return JS_DAY_TO_DAY_OF_WEEK[date.getUTCDay()];
+}
 
 /**
  * Parses an ISO date string ("YYYY-MM-DD" or full ISO timestamp) and returns
