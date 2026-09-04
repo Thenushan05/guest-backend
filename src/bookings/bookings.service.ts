@@ -148,7 +148,9 @@ export class BookingsService {
       ...(query.status ? { status: query.status } : {}),
     };
 
-    const [bookings, total] = await this.prisma.$transaction([
+    // Promise.all, not $transaction: independent reads run concurrently over
+    // the pool instead of serialized in one DB transaction/connection.
+    const [bookings, total] = await Promise.all([
       this.prisma.booking.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -249,7 +251,9 @@ export class BookingsService {
       ? { [query.sortBy]: query.sortOrder }
       : { createdAt: 'desc' };
 
-    const [bookings, total] = await this.prisma.$transaction([
+    // Promise.all, not $transaction: independent reads run concurrently over
+    // the pool instead of serialized in one DB transaction/connection.
+    const [bookings, total] = await Promise.all([
       this.prisma.booking.findMany({ where, orderBy, skip, take, include: bookingIncludeArgs }),
       this.prisma.booking.count({ where }),
     ]);

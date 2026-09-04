@@ -30,7 +30,9 @@ export class OffersService {
       endDate: { gte: now },
     };
 
-    const [offers, total] = await this.prisma.$transaction([
+    // Promise.all, not $transaction: independent reads run concurrently over
+    // the pool instead of serialized in one DB transaction/connection.
+    const [offers, total] = await Promise.all([
       this.prisma.offer.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       this.prisma.offer.count({ where }),
     ]);
@@ -53,7 +55,9 @@ export class OffersService {
       ? { [query.sortBy]: query.sortOrder }
       : { createdAt: 'desc' };
 
-    const [offers, total] = await this.prisma.$transaction([
+    // Promise.all, not $transaction: independent reads run concurrently over
+    // the pool instead of serialized in one DB transaction/connection.
+    const [offers, total] = await Promise.all([
       this.prisma.offer.findMany({ where, orderBy, skip, take }),
       this.prisma.offer.count({ where }),
     ]);

@@ -53,7 +53,10 @@ export class RoomsService {
       ? { [query.sortBy]: query.sortOrder }
       : { createdAt: 'desc' };
 
-    const [rooms, total] = await this.prisma.$transaction([
+    // Promise.all, not $transaction: independent reads run concurrently over
+    // the pool instead of serialized in one DB transaction/connection - a
+    // meaningful win on a remote/high-latency DB where each round-trip costs.
+    const [rooms, total] = await Promise.all([
       this.prisma.room.findMany({ where, orderBy, skip, take, include: roomIncludeArgs }),
       this.prisma.room.count({ where }),
     ]);
