@@ -1,24 +1,23 @@
-import { Controller, Get, Param, Res } from '@nestjs/common';
+import { Controller, Get, All, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { UploadsService } from './uploads.service';
 import { Public } from '../common/decorators/public.decorator';
+import { Request } from 'express';
 
 /**
- * Serves locally-stored room images through an authenticated endpoint.
+ * Serves locally-stored room images.
  *
- * Route: GET /api/v1/uploads/*path
+ * Routes:
+ *  - GET /api/v1/uploads?path=<relative-path> — serves an image by query parameter
  *
  * Security model:
- *  - Protected by the global JwtAuthGuard (no @Public() decorator).
- *  - Files live in <project-root>/secure-uploads/ — never under a static
- *    public directory, so they CANNOT be fetched without a valid JWT.
- *  - UploadsService.readLocalFile() performs a path-traversal guard before
- *    reading anything from disk.
+ *  - Marked @Public() to allow unauthenticated access (images are read-only).
+ *  - Files live in <project-root>/secure-uploads/ — never under a static public directory.
+ *  - UploadsService.readLocalFile() performs a path-traversal guard before reading anything.
  *
  * This controller is only relevant when CLOUDINARY_CLOUD_NAME is not set
- * (i.e. development / test). In production the image URLs returned by the API
- * are Cloudinary HTTPS URLs and this endpoint is never called.
+ * (i.e. development / test). In production the image URLs are Cloudinary HTTPS URLs.
  */
 @ApiTags('Uploads')
 @ApiBearerAuth()
@@ -27,14 +26,28 @@ export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
   /**
-   * Serve a single image file from secure local storage.
-   * The :path param uses a wildcard so nested sub-paths are supported,
-   * e.g. /uploads/guest-house/rooms/room-id/1234567890-abc.jpg
+   * Test endpoint to verify the controller is being called.
    */
-  @Get('*path')
+  @Get('test')
+  @Public()
+  testRoute(): { message: string } {
+    return { message: 'Uploads controller is working!' };
+  }
+
+  /**
+   * Serve a single image file from secure local storage by relative path.
+   * Usage: GET /api/v1/uploads?path=guest-house/rooms/room-id/filename.jpg
+   */
+  @Get('')
   @Public()
   @ApiOperation({ summary: 'Serve a locally-stored room image' })
-  serveImage(@Param('path') relativePath: string, @Res() res: Response) {
+  serveImage(@Req() req: Request, @Res() res: Response) {
+    const relativePath = (req.query.path as string) || '';
+
+    if (!relativePath) {
+      return res.status(400).json({ success: false, message: 'Missing path parameter' });
+    }
+
     const file = this.uploadsService.readLocalFile(relativePath);
 
     if (!file) {
@@ -42,7 +55,6 @@ export class UploadsController {
     }
 
     res.setHeader('Content-Type', file.mimeType);
-    // Cache for 1 hour — images don't change once uploaded
     res.setHeader('Cache-Control', 'private, max-age=3600');
     return res.send(file.buffer);
   }

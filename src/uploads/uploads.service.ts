@@ -168,9 +168,9 @@ export class UploadsService {
       // publicId is the path relative to storage root — used for deletion
       const publicId = path.join(folder, filename).replace(/\\/g, '/');
 
-      // URL served by the secure endpoint: /api/v1/uploads/<publicId>
+      // URL served by the secure endpoint: /api/v1/uploads?path=<publicId>
       const apiPrefix = this.configService.get<string>('apiPrefix', 'api/v1');
-      const url = `/${apiPrefix}/uploads/${publicId}`;
+      const url = `/${apiPrefix}/uploads?path=${encodeURIComponent(publicId)}`;
 
       return { url, publicId };
     } catch (error) {
@@ -207,7 +207,10 @@ export class UploadsService {
     // Strip any leading slashes / drive letters to make it truly relative
     const sanitized = relativePath.replace(/^[/\\]+/, '').replace(/\.\./g, '');
     const resolved = path.resolve(root, sanitized);
-    if (!resolved.startsWith(root + path.sep) && resolved !== root) {
+    // Normalize root for comparison (in case of Windows path separators)
+    const normalizedRoot = path.normalize(root);
+    const normalizedResolved = path.normalize(resolved);
+    if (!normalizedResolved.startsWith(normalizedRoot + path.sep) && normalizedResolved !== normalizedRoot) {
       this.logger.warn(`Path traversal attempt blocked: ${relativePath}`);
       return null;
     }
