@@ -103,6 +103,7 @@ const facilityByName = (name: string) => facilities.find((f) => f.name === name)
       numberOfBathrooms: 1,
       roomSize: 180,
       facilities: ['WiFi', 'Air Conditioning', 'Hot Water'],
+      images: ['https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80'],
     },
     {
       roomNumber: '201',
@@ -115,6 +116,7 @@ const facilityByName = (name: string) => facilities.find((f) => f.name === name)
       numberOfBathrooms: 1,
       roomSize: 320,
       facilities: ['WiFi', 'Air Conditioning', 'TV', 'Hot Water', 'Balcony'],
+      images: ['https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80'],
     },
     {
       roomNumber: '301',
@@ -127,6 +129,7 @@ const facilityByName = (name: string) => facilities.find((f) => f.name === name)
       numberOfBathrooms: 2,
       roomSize: 450,
       facilities: ['WiFi', 'Air Conditioning', 'TV', 'Hot Water', 'Parking', 'Kitchen'],
+      images: ['https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&q=80'],
     },
     {
       roomNumber: '401',
@@ -140,6 +143,7 @@ const facilityByName = (name: string) => facilities.find((f) => f.name === name)
       roomSize: 650,
       status: RoomStatus.AVAILABLE,
       facilities: ['WiFi', 'Air Conditioning', 'TV', 'Hot Water', 'Parking', 'Balcony', 'Swimming Pool'],
+      images: ['https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80'],
     },
     {
       roomNumber: '102',
@@ -153,18 +157,27 @@ const facilityByName = (name: string) => facilities.find((f) => f.name === name)
       roomSize: 180,
       status: RoomStatus.MAINTENANCE,
       facilities: ['WiFi', 'Air Conditioning'],
+      images: ['https://images.unsplash.com/photo-1505693314120-0d443867891c?w=800&q=80'],
     },
   ];
 
   for (const def of roomDefs) {
-    const { facilities: facilityNames, ...roomData } = def;
+    const { facilities: facilityNames, images: imageUrls, ...roomData } = def;
     const room = await prisma.room.upsert({
       where: { roomNumber: def.roomNumber },
-      update: {},
+      update: {
+        images: {
+          deleteMany: {},
+          create: imageUrls ? imageUrls.map((url, i) => ({ imageUrl: url, isPrimary: i === 0, sortOrder: i })) : [],
+        },
+      },
       create: {
         ...roomData,
         facilities: {
           create: facilityNames.map((name) => ({ facilityId: facilityByName(name) })),
+        },
+        images: {
+          create: imageUrls ? imageUrls.map((url, i) => ({ imageUrl: url, isPrimary: i === 0, sortOrder: i })) : [],
         },
       },
     });

@@ -1,7 +1,8 @@
-import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { UploadsService } from './uploads.service';
+import { Public } from '../common/decorators/public.decorator';
 
 /**
  * Serves locally-stored room images through an authenticated endpoint.
@@ -31,7 +32,8 @@ export class UploadsController {
    * e.g. /uploads/guest-house/rooms/room-id/1234567890-abc.jpg
    */
   @Get('*path')
-  @ApiOperation({ summary: 'Serve a locally-stored room image (requires auth)' })
+  @Public()
+  @ApiOperation({ summary: 'Serve a locally-stored room image' })
   serveImage(@Param('path') relativePath: string, @Res() res: Response) {
     const file = this.uploadsService.readLocalFile(relativePath);
 

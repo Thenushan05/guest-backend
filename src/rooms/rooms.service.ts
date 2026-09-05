@@ -121,6 +121,9 @@ export class RoomsService {
         data: roomData,
         include: roomIncludeArgs,
       });
+    }, {
+      maxWait: 5000,
+      timeout: 15000,
     });
 
     return mapRoomToResponse(room);
@@ -152,6 +155,27 @@ export class RoomsService {
         roomId,
         imageUrl: img.url,
         publicId: img.publicId,
+        isPrimary: hasPrimaryAlready === 0 && index === 0,
+        sortOrder: existingImageCount + index,
+      })),
+    });
+
+    return this.findOne(room.id);
+  }
+
+  async addImagesByUrl(roomId: string, urls: string[]): Promise<RoomResponse> {
+    const room = await this.ensureRoomExists(roomId);
+    
+    const existingImageCount = await this.prisma.roomImage.count({ where: { roomId } });
+    const hasPrimaryAlready = await this.prisma.roomImage.count({
+      where: { roomId, isPrimary: true },
+    });
+
+    await this.prisma.roomImage.createMany({
+      data: urls.map((url, index) => ({
+        roomId,
+        imageUrl: url,
+        publicId: null, // No publicId since it's an external URL
         isPrimary: hasPrimaryAlready === 0 && index === 0,
         sortOrder: existingImageCount + index,
       })),

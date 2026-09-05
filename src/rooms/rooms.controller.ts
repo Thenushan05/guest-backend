@@ -19,6 +19,7 @@ import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { QueryRoomsDto } from './dto/query-rooms.dto';
 import { ReorderImagesDto } from './dto/reorder-images.dto';
+import { AddImageUrlsDto } from './dto/add-image-urls.dto';
 import { AvailabilityService } from '../availability/availability.service';
 import { RoomAvailabilityQueryDto } from '../availability/dto/room-availability-query.dto';
 import { Public } from '../common/decorators/public.decorator';
@@ -101,6 +102,16 @@ export class RoomsController {
   @ResponseMessage('Room images uploaded successfully')
   addImages(@Param('id') id: string, @UploadedFiles() files: Express.Multer.File[]) {
     return this.roomsService.addImages(id, files);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post(':id/image-urls')
+  @ApiOperation({ summary: 'Add one or more images by URL for a room (admin only)' })
+  @ResponseMessage('Room image URLs added successfully')
+  addImagesByUrl(@Param('id') id: string, @Body() dto: AddImageUrlsDto) {
+    return this.roomsService.addImagesByUrl(id, dto.urls);
   }
 
   @ApiBearerAuth()
