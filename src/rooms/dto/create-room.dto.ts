@@ -40,11 +40,18 @@ export class CreateRoomDto {
   @IsNotEmpty()
   roomTypeId: string;
 
-  @ApiProperty({ example: 12000, description: 'Price per night in LKR' })
+  @ApiProperty({ example: 12000, description: 'Price per night in LKR (AC / Base)' })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
   pricePerNight: number;
+
+  @ApiPropertyOptional({ example: 9500, description: 'Optional Non-AC price per night in LKR' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  pricePerNightNonAc?: number;
 
   @ApiProperty({ example: 2 })
   @Type(() => Number)

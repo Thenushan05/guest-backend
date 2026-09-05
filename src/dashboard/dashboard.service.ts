@@ -37,7 +37,7 @@ export class DashboardService {
       todayCheckIns,
       todayCheckOuts,
       upcomingBookings,
-    ] = await this.prisma.$transaction([
+    ] = await Promise.all([
       this.prisma.room.count(),
       this.prisma.room.count({ where: { isActive: true, status: RoomStatus.AVAILABLE } }),
       this.prisma.room.count({ where: { status: RoomStatus.MAINTENANCE } }),

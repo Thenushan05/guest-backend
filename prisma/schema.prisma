@@ -45,6 +45,18 @@ enum DiscountType {
   FIXED_AMOUNT
 }
 
+// Used by Offer.daysOfWeek to restrict a recurring offer (e.g. every Fri-Sun)
+// to specific weekdays within its overall startDate/endDate window.
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
 // ==========================================
 // USER
 // ==========================================
@@ -118,6 +130,7 @@ model Room {
   description       String?    @db.Text
   roomTypeId        String
   pricePerNight     Decimal    @db.Decimal(10, 2)
+  pricePerNightNonAc Decimal?   @db.Decimal(10, 2)
   maximumGuests     Int
   numberOfBeds      Int
   numberOfBathrooms Int        @default(1)
@@ -200,11 +213,17 @@ model Offer {
   discountValue  Decimal      @db.Decimal(10, 2)
   startDate      DateTime
   endDate        DateTime
+  // Empty = applies every day within [startDate, endDate]. Non-empty = the
+  // offer only discounts bookings whose check-in date falls on one of these
+  // weekdays (e.g. [FRI, SAT, SUN] for a recurring weekend offer that keeps
+  // applying every week for as long as the overall window runs).
+  daysOfWeek     DayOfWeek[]  @default([])
   minimumNights  Int          @default(1)
   roomTypeId     String?
   roomId         String?
   isActive       Boolean      @default(true)
   bannerImage    String?      @db.Text
+  iconName       String?      @db.VarChar(50)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -227,8 +246,13 @@ model Offer {
 model Booking {
   id                 String        @id @default(cuid())
   bookingNumber      String        @unique
-  userId             String
+  userId             String?
   roomId             String
+  customerFirstName  String?
+  customerLastName   String?
+  customerPhone      String?
+  customerAddress    String?
+  customerEmail      String?
   checkInDate        DateTime      @db.Date
   checkOutDate       DateTime      @db.Date
   numberOfGuests     Int
@@ -236,6 +260,7 @@ model Booking {
   numberOfChildren   Int           @default(0)
   numberOfNights     Int
   pricePerNight      Decimal       @db.Decimal(10, 2)
+  isAc               Boolean       @default(true)
   subtotal           Decimal       @db.Decimal(10, 2)
   discountAmount     Decimal       @default(0) @db.Decimal(10, 2)
   totalAmount        Decimal       @db.Decimal(10, 2)
@@ -252,7 +277,7 @@ model Booking {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  user           User                   @relation("CustomerBookings", fields: [userId], references: [id])
+  user           User?                  @relation("CustomerBookings", fields: [userId], references: [id], onDelete: SetNull)
   room           Room                   @relation(fields: [roomId], references: [id])
   offer          Offer?                 @relation(fields: [offerId], references: [id], onDelete: SetNull)
   approvedByUser User?                  @relation("ApprovedByAdmin", fields: [approvedBy], references: [id], onDelete: SetNull)
