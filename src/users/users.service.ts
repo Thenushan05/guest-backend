@@ -34,7 +34,9 @@ export class UsersService {
       ? { [query.sortBy]: query.sortOrder }
       : { createdAt: 'desc' };
 
-    const [users, total] = await this.prisma.$transaction([
+    // Promise.all, not $transaction: independent reads run concurrently over
+    // the pool instead of serialized in one DB transaction/connection.
+    const [users, total] = await Promise.all([
       this.prisma.user.findMany({ where, orderBy, skip, take }),
       this.prisma.user.count({ where }),
     ]);

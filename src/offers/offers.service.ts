@@ -9,6 +9,7 @@ import { OfferNotFoundException } from '../common/exceptions/domain-exceptions';
 import { normalizePagination, buildPaginatedResult } from '../common/utils/pagination.util';
 import { PaginatedResult } from '../common/dto/paginated-result';
 import { roundCurrency, toNumber } from '../common/utils/decimal.util';
+import { toUtcDateOnly, dayOfWeekOf } from '../common/utils/date.util';
 
 export interface AppliedOffer {
   offerId: string;
@@ -30,7 +31,9 @@ export class OffersService {
       endDate: { gte: now },
     };
 
-    const [offers, total] = await this.prisma.$transaction([
+    // Promise.all, not $transaction: independent reads run concurrently over
+    // the pool instead of serialized in one DB transaction/connection.
+    const [offers, total] = await Promise.all([
       this.prisma.offer.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
       this.prisma.offer.count({ where }),
     ]);
@@ -53,7 +56,9 @@ export class OffersService {
       ? { [query.sortBy]: query.sortOrder }
       : { createdAt: 'desc' };
 
-    const [offers, total] = await this.prisma.$transaction([
+    // Promise.all, not $transaction: independent reads run concurrently over
+    // the pool instead of serialized in one DB transaction/connection.
+    const [offers, total] = await Promise.all([
       this.prisma.offer.findMany({ where, orderBy, skip, take }),
       this.prisma.offer.count({ where }),
     ]);
@@ -83,13 +88,31 @@ export class OffersService {
 
   create(dto: CreateOfferDto): Promise<OfferResponse> {
     this.validateBusinessRules(dto);
-    return this.prisma.offer.create({ data: dto }).then(mapOfferToResponse);
+    return this.prisma.offer
+      .create({
+        // dto.startDate/endDate are validated as ISO date strings (@IsDateString),
+        // but Prisma's DateTime column needs a real Date - a bare "YYYY-MM-DD"
+        // string sent straight through throws "premature end of input".
+        data: {
+          ...dto,
+          startDate: toUtcDateOnly(dto.startDate),
+          endDate: toUtcDateOnly(dto.endDate),
+        },
+      })
+      .then(mapOfferToResponse);
   }
 
   async update(id: string, dto: UpdateOfferDto): Promise<OfferResponse> {
     await this.ensureExists(id);
     this.validateBusinessRules(dto);
-    const offer = await this.prisma.offer.update({ where: { id }, data: dto });
+    const offer = await this.prisma.offer.update({
+      where: { id },
+      data: {
+        ...dto,
+        ...(dto.startDate ? { startDate: toUtcDateOnly(dto.startDate) } : {}),
+        ...(dto.endDate ? { endDate: toUtcDateOnly(dto.endDate) } : {}),
+      },
+    });
     return mapOfferToResponse(offer);
   }
 
@@ -112,6 +135,7 @@ export class OffersService {
     subtotal: number;
   }): Promise<AppliedOffer | null> {
     const { roomId, roomTypeId, checkInDate, numberOfNights, subtotal } = params;
+    const checkInDayOfWeek = dayOfWeekOf(checkInDate);
 
     const candidates = await this.prisma.offer.findMany({
       where: {
@@ -119,7 +143,12 @@ export class OffersService {
         startDate: { lte: checkInDate },
         endDate: { gte: checkInDate },
         minimumNights: { lte: numberOfNights },
-        OR: [{ roomId }, { roomTypeId }, { AND: [{ roomId: null }, { roomTypeId: null }] }],
+        AND: [
+          { OR: [{ roomId }, { roomTypeId }, { AND: [{ roomId: null }, { roomTypeId: null }] }] },
+          // Empty daysOfWeek = applies every day (the pre-existing behavior);
+          // non-empty = only on the matching weekdays (a recurring offer).
+          { OR: [{ daysOfWeek: { isEmpty: true } }, { daysOfWeek: { has: checkInDayOfWeek } }] },
+        ],
       },
     });
 
